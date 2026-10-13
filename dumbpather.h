@@ -39,22 +39,17 @@ Use:
  */
 #ifndef PATHFINDER_FOR_DUMBS_INCLUDE
 #define PATHFINDER_FOR_DUMBS_INCLUDE
-#define Active_OUTSTREAM(text) std::cout<< text << std::endl;
-#ifdef _CSTDLIB_
+#define Active_OUTSTREAM(text) //std::cout<< text << std::endl;
 
 #ifdef _MSC_VER
 #ifdef _DEBUG
 	#ifdef DUMBPATHER_DBGOUT
 		#define dbg_out(s) Active_OUTSTREAM(s)
-		#define dbg_foo(foo) foo
 	#else // !DUMBPATHER_DBGOUT
 		#define dbg_out(s)
-		#define dbg_foo(foo)
-		#define dbg_prc(fnc, s)
 	#endif // !DUMBPATHER_DBGOUT
 #else // !_DEBUG
 	#define dbg_out(s)
-	#define dbg_foo(foo)
 	#pragma warning( disable : 4786 )	// Debugger truncating names.
 	#pragma warning( disable : 4530 )	// Exception handler isn't used
 #endif // !_DEBUG
@@ -149,6 +144,12 @@ Use:
 	else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_DIAG, indx });	}
 #endif // AdjacentCost_foo_1
 
+#define RETURN_HERUINSTIC(sI,eI)	\
+	u_4b sX = sI % map_size_;		\
+	sI = sI / map_size_;			\
+	u_4b eX = eI % map_size_;		\
+	eI = eI / map_size_;			\
+	return ( (sI > eI ? sI - eI : eI - sI) + (sX > eX ? sX - eX : eX - sX) ) << 7;
 
 namespace pthfd {
 	//======================================================================
@@ -173,25 +174,26 @@ namespace pthfd {
 		CPathArray(const CPathArray& other) {
 			dbg_out("CALL COPY [ CPathArray ]");
 			this->length_ = other.length_;
-			this->Resize(this->length_);
+			this->Relloc(this->length_);
 			memcpy(this->array_, other.array_,other.length_ * sizeof(SPoint2u));
 		}
 		CPathArray(CPathArray&& other) noexcept {
 			dbg_out("CALL FORWARD [ CPathArray ]");
-			if (length_) delete[] array_;
 			this->array_ = other.array_;
 			other.array_ = nullptr;
 			this->length_ = other.length_;
 			other.length_ = 0;
 		}
 		CPathArray& operator=(const CPathArray& other) {
+			if(&other == this) return *this;
 			dbg_out("CALL [ = ] COPY [ CPathArray ]");
 			this->length_ = other.length_;
-			this->Resize(this->length_);
-			memcpy(this->array_, other.array_, other.length_ * sizeof(SPoint2u));
+			this->Relloc(this->length_);
+			memcpy(other.array_, this->array_, other.length_ * sizeof(SPoint2u));
 			return *this;
 		}
 		CPathArray& operator=(CPathArray&& other) noexcept {
+			if (&other == this) return *this;
 			dbg_out("CALL [ = ] FORWARD [ CPathArray ]");
 			if (length_) delete[] array_;
 			this->array_ = other.array_;
@@ -202,7 +204,7 @@ namespace pthfd {
 		}
 		__forceinline SPoint2u& operator[](u_4b i) { return array_[i]; }
 		__forceinline u_4b Length() const { return length_; }
-		__forceinline void Resize(u_4b array_length) {
+		__forceinline void Relloc(u_4b array_length) {
 			if (array_length == length_) return;
 			if (array_) delete[] array_;
 			if (!array_length) {
@@ -261,7 +263,7 @@ namespace pthfd {
 				capacity(0);
 			}
 			__forceinline void Clear() { m_size = 0; }	// see warning above
-			__forceinline void Resize(u_4b s) { capacity(s); m_size = s; }
+			__forceinline void Relloc(u_4b s) { capacity(s); m_size = s; }
 			__forceinline void PushBack(const T& t) noexcept { capacity(m_size + 1); m_buf[m_size++] = t; }
 			__forceinline u_4b Size() const { return m_size; }
 			__forceinline T& operator[](u_4b i) { return m_buf[i]; }
@@ -532,13 +534,13 @@ namespace pthfd {
 				const u_4b sz = heap_.Size();
 				if (sz > 1) {
 					CPathNode* last = heap_[sz - 1];
-					heap_.Resize(sz - 1);
+					heap_.Relloc(sz - 1);
 					heap_[0] = last;
 					last->heapIndex = 0;
 					SiftDown(0);
 				}
 				else {
-					heap_.Resize(0);
+					heap_.Relloc(0);
 				}
 				top->OpenFlag = 0;
 				top->heapIndex = MAXIMAL;
@@ -555,12 +557,7 @@ namespace pthfd {
 		i_1b** map_cells_;
 		//======================================================================
 		__forceinline u_4b GetEstimateCost(u_4b stateStart, u_4b stateEnd) {
-			u_4b sX = stateStart % map_size_;
-			stateStart = stateStart / map_size_;
-			u_4b eX = stateEnd % map_size_;
-			stateEnd = stateEnd / map_size_;
-			return ( (stateStart > stateEnd ? stateStart - stateEnd : stateEnd - stateStart) +
-				(sX > eX ? sX - eX : eX - sX)) << 7;
+			RETURN_HERUINSTIC(stateEnd,stateStart);
 		}
 		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
 			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
@@ -617,12 +614,12 @@ namespace pthfd {
 				it = it->parent;
 			}
 			if (count < 3) {
-				path.Resize(2);
+				path.Relloc(2);
 				path[0] = start;
 				path[1] = end;
 			}
 			else {
-				path.Resize(count);
+				path.Relloc(count);
 				path[0] = start;
 				path[count - 1] = end;
 				count -= 2;
@@ -636,12 +633,12 @@ namespace pthfd {
 		}
 		__forceinline void Environs(CPathNode* mpather_node, CVector<SNodeCost>* pNodeCost) {
 			if (mpather_node->numAdjacent == 0) {
-				pNodeCost->Resize(0);
+				pNodeCost->Relloc(0);
 			}
 			else if (mpather_node->cacheIndex < 0) {
-				statesCostVec_.Resize(0);
+				statesCostVec_.Relloc(0);
 				GetAdjacentCost(mpather_node->state, &statesCostVec_);
-				pNodeCost->Resize(statesCostVec_.Size());
+				pNodeCost->Relloc(statesCostVec_.Size());
 				mpather_node->numAdjacent = statesCostVec_.Size();
 				if (mpather_node->numAdjacent > 0) {
 					const u_4b stateCostVecSize = statesCostVec_.Size();
@@ -659,7 +656,7 @@ namespace pthfd {
 				}
 			}
 			else {
-				pNodeCost->Resize(mpather_node->numAdjacent);
+				pNodeCost->Relloc(mpather_node->numAdjacent);
 				SNodeCost* pNodeCostPtr = &(*pNodeCost)[0];
 				pathNodePool_.GetCache(mpather_node->cacheIndex, mpather_node->numAdjacent, pNodeCostPtr);
 				for (i_4b i = 0; i < mpather_node->numAdjacent; ++i) {
@@ -685,8 +682,8 @@ namespace pthfd {
 							GetEstimateCost(startNode, endNode), 0
 						)
 				);
-			statesCostVec_.Resize(0);
-			nodesCostVec_.Resize(0);
+			statesCostVec_.Relloc(0);
+			nodesCostVec_.Relloc(0);
 			while (!open.Empty()) {
 				node = open.Pop();
 				if (node->state == endNode) {
@@ -727,7 +724,6 @@ namespace pthfd {
 	public:
 		struct CacheStats final {
 			u_4b selfBytes;          // sizeof(CDumbPather)
-			u_4b costsVecBytes;      // sizeof(u_4b) * costsVec_.Size()
 			u_4b stateCostVecBytes;  // sizeof(StateCost) * statesCostVec_.Size()
 			u_4b nodeCostVecBytes;   // sizeof(NodeCost) * nodesCostVec_.Size()
 			u_4b poolCacheBytes;     // cache в CPathPool
@@ -751,9 +747,9 @@ namespace pthfd {
 			dbg_out("=====================[  BEGIN FindPath()  ]=====================");
 			SPoint2u& start = path_points[0];
 			SPoint2u& end   = path_points[1];
-			path_segments->Resize(0);		 
-			Bool unvalid = 					 
-				( (end.y   < map_size_ && end.x   < map_size_)? map_cells_[ end.y ][ end.x ] == TerrainType::BLOKABLE : true ) &&
+			path_segments->Relloc(0);		 
+			Bool unvalid = 
+				( (end.y   < map_size_ && end.x   < map_size_)? map_cells_[ end.y ][ end.x ] == TerrainType::BLOKABLE : true ) ||
 				( (start.y < map_size_ && start.x < map_size_)? map_cells_[start.y][start.x] == TerrainType::BLOKABLE : true );
 			if (unvalid) {
 				dbg_out("=====================[ NOT_END FindPath() ]=====================");
@@ -765,7 +761,7 @@ namespace pthfd {
 			i_4b result = Search(frstNode, lastNode, &pathNodes);
 			if (result == IS_SOLVED) {
 				dbg_out("=====================[IS_SOLVED FindPath()]=====================");
-				path_segments->Resize(pathNodes.Size());
+				path_segments->Relloc(pathNodes.Size());
 				for (u_4b i = 0; i < path_segments->Length(); ++i) {
 					(*path_segments)[i] = SPoint2u{
 						static_cast<u_2b>(pathNodes[i] % map_size_), 
@@ -797,10 +793,9 @@ namespace pthfd {
 		}
 	};
 };
-#undef Active_OUTSTREAM
 #undef SET_LINE_NEGIBORS
 #undef SET_DIAG_NEGIBORS
+#undef RETURN_HERUINSTIC 
 #undef CACHBLOCK
 #undef MAXIMAL
-#endif // _CSTDLIB_
 #endif // PATHFINDER_FOR_DUMBS_INCLUDE

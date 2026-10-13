@@ -172,7 +172,6 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 
 					std::cout << "CDumbPather cache state:\n"
 						<< "  sizeof(CDumbPather)     : " << cach.selfBytes << '\n'
-						<< "  costsVec_               : " << cach.costsVecBytes << '\n'
 						<< "  statesCostVec_          : " << cach.stateCostVecBytes << '\n'
 						<< "  nodesCostVec_           : " << cach.nodeCostVecBytes << '\n'
 						<< "  pathNodePool_ cache     : " << cach.poolCacheBytes << '\n'
@@ -180,7 +179,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 						<< "  pathNodePool_ hashTable : " << cach.poolHashBytes << '\n'
 						<< "  nodes allocated/free    : " << cach.poolAllocated << '/' << cach.poolAvailable << '\n'
 						<< "  total (approx)          : "
-						<< (cach.selfBytes + cach.costsVecBytes + cach.stateCostVecBytes + cach.nodeCostVecBytes
+						<< (cach.selfBytes + cach.stateCostVecBytes + cach.nodeCostVecBytes
 							+ cach.poolCacheBytes + cach.poolBlocksBytes + cach.poolHashBytes) << '\n';
 
 				}
