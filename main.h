@@ -10,17 +10,21 @@
 #define DUMBPATHER_TYPES
 #define DUMBPATHER_DBGOUT
 #define DUMBPATHER_DEFAULT_FAST
+#define USE_DUMB_OPTIMIZE
 
 #include <iostream>
 #include <windows.h>
 #include <stdint.h>
 #include <cstdlib>
+#include <bitset>
 #include <cmath>
 #include <gl/GL.h>
 #include <STB/stb_image.h>
 #include <GLFW/glfw3.h>
 #include "dumbpather.h"
 #include "dumbunites.h"
+
+
 
 class CStbImg {
 private:
@@ -53,7 +57,7 @@ public:
 	}
 	void getPix(i_2b X, i_2b Y, u_4b* color) {
 		if (X >= x_ || X < 0 || Y >= y_ || Y < 0) {
-			*color = 0;
+			*color = 999999999;
 			return;
 		}
 		*color =
@@ -63,9 +67,9 @@ public:
 	}
 	void getPix(i_2b X, i_2b Y, u_1b(*color)[3]) {
 		if (X >= x_ || X < 0 || Y >= y_ || Y < 0) {
-			(*color)[2] = 0;
-			(*color)[1] = 0;
-			(*color)[0] = 0;
+			(*color)[2] = 255;
+			(*color)[1] = 255;
+			(*color)[0] = 255;
 			return;
 		}
 		std::memcpy(*color, &(data_[(Y * y_ + X) * 3]), 3);
@@ -151,6 +155,38 @@ public :
 };
 
 struct SMap_8b {
+#ifdef USE_DUMB_OPTIMIZE
+#define map_optimization(foo) foo
+private:
+	__forceinline void validation_state(u_2b sX, u_2b sY, i_1b* res, i_1b num) {
+		if (sX < size_ && sY < size_) 
+			if (cell[sY][sX] == pthfd::TerrainType::WALKABLE)
+				*res |= num; 
+	}
+	__forceinline void optimization_map_algorithm() {
+		i_1b** new_map = new i_1b * [size_];
+		for (u_2b x,y = 0; y < size_; ++y){
+			new_map[y] = new i_1b[size_];
+			for (x = 0;x < size_; ++x) {
+				new_map[y][x] = 0;
+				validation_state((x - 1), (y - 1), &new_map[y][x], 0b00000001);
+				validation_state((x + 0), (y - 1), &new_map[y][x], 0b00000010);
+				validation_state((x + 1), (y - 1), &new_map[y][x], 0b00000100);
+				validation_state((x - 1), (y + 0), &new_map[y][x], 0b00001000);
+				validation_state((x + 1), (y + 0), &new_map[y][x], 0b00010000);
+				validation_state((x - 1), (y + 1), &new_map[y][x], 0b00100000);
+				validation_state((x + 0), (y + 1), &new_map[y][x], 0b01000000);
+				validation_state((x + 1), (y + 1), &new_map[y][x], 0b10000000);
+			}
+		}
+		for (i_4b x = 0; x < size_; ++x) { delete[] cell[x]; }
+		delete[] cell;
+		cell = new_map;
+	}
+public:
+#else
+#define map_optimization(foo)
+#endif
 	i_1b** cell;
 	u_2b size_;
 	SMap_8b() :size_(0), cell(nullptr) {}
@@ -169,10 +205,11 @@ struct SMap_8b {
 				cell[y] = new i_1b[size];
 			}
 			image.getPix(x, y, &color);
-			std::memset(&cell[y][x], pthfd::TerrainType::WALKABLE, sizeof(cell[y][x]));
+			cell[y][x] = pthfd::TerrainType::WALKABLE;
 			if (color[0] > 8) cell[y][x] = pthfd::TerrainType::BLOKABLE;
 			++x;
 		}
+		map_optimization( optimization_map_algorithm() );
 	}
 	void free() {
 		if (!size_) return;
@@ -181,13 +218,42 @@ struct SMap_8b {
 		size_ = 0;
 	}
 	void print() {
-		std::cout << std::endl;
+		map_optimization(
+			std::cout << std::endl;
+			for (i_4b i, x, y = 0; y < size_; ++y) {
+				for (x = 0; x < size_; ++x) {
+					std::cout << "  ";
+					std::cout << ((cell[y][x] & 0b00000001) == 0 ? " X " : " . ");
+					std::cout << ((cell[y][x] & 0b00000010) == 0 ? " X " : " . ");
+					std::cout << ((cell[y][x] & 0b00000100) == 0 ? " X " : " . ");
+				}
+				std::cout << std::endl;
+				for (x = 0; x < size_; ++x) {
+					std::cout << "  ";
+					std::cout << ((cell[y][x] & 0b00001000) == 0 ? " X " : " . ");
+					std::cout << x << ';' << y;
+					std::cout << ((cell[y][x] & 0b00010000) == 0 ? " X " : " . ");
+
+				}
+				std::cout << std::endl;
+				for (x = 0; x < size_; ++x) {
+					std::cout << "  ";
+					std::cout << ((cell[y][x] & 0b00100000) == 0 ? " X " : " . ");
+					std::cout << ((cell[y][x] & 0b01000000) == 0 ? " X " : " . ");
+					std::cout << ((cell[y][x] & 0b10000000) == 0 ? " X " : " . ");
+				}
+				std::cout << std::endl;
+				std::cout << std::endl;
+			}
+			std::cout << std::endl;
+		);
 		for (i_4b x, y = size_ - 1; y > -1; --y) {
 			for (x = 0; x < size_; ++x) { std::cout << " " << cell[y][x] << " "; }
 			std::cout << std::endl;
 		}
 		std::cout << std::endl;
 	}
+#undef map_optimization
 };
 
 //*****************************************************************************************

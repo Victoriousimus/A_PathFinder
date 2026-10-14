@@ -5,6 +5,8 @@
 #define PATH_TEST_1_ON
 #define PATH_TEST_2_ON
 
+
+
 struct mainGlobalVaribles{
 	i_2b mause_X{0};
 	i_2b mause_Y{0};
@@ -123,7 +125,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 		Win.setMouseCallback(MouseCallback);
 		Win.setBroadCallback(BroadCallback);
 		Map.init(Img, size);
-		if(size<128) Map.print();
+		if(Map.size_ < 16) Map.print();
 
 		pthfd::CDumbPather Pth;
 		pthfd::CPathArray path_arr;
@@ -131,7 +133,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 
 		start_end_path[0] = { 52, 119 };
 		start_end_path[1] = { 206, 90 };
-		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 512);
+		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 2);
 
 		while (!Win.window_close()) {
 			if (GV.update) {

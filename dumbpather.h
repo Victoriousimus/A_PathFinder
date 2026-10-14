@@ -12,6 +12,32 @@ Use:
 	#define SPoint2u Point2D		// You can use any struct, if it have [x,y] freandly for [CDumbPather]
 	#include " [include_lib_directory] /dumbpather.h"
 	
+
+	############################################################
+	USE MAP 
+
+	CELL = one byte node
+
+			   - 8 7 6 5  4 3 2 1 -
+		CELL = [ 0 0 0 0  0 0 0 0 ]
+
+			1 2 3
+			4 * 5
+			6 7 8
+
+	CELL & 0b00000001 => move to { y-1 , x-1 }
+	CELL & 0b00000010 => move to { y-1 , x   }
+	CELL & 0b00000100 => move to { y-1 , x+1 }
+	CELL & 0b00001000 => move to {   y , x-1 }
+	CELL & 0b00010000 => move to {   y , x+1 }
+	CELL & 0b00100000 => move to { y+1 , x-1 }
+	CELL & 0b01000000 => move to { y+1 , x   }
+	CELL & 0b10000000 => move to { y+1 , x+1 }
+
+	#define USE_DUMB_OPTIMIZE
+
+	#############################################################
+
 	struct Point2D{
 		u_2b x;
 		u_2b y;
@@ -557,18 +583,66 @@ namespace pthfd {
 		i_1b** map_cells_;
 		//======================================================================
 		__forceinline u_4b GetEstimateCost(u_4b stateStart, u_4b stateEnd) {
-			RETURN_HERUINSTIC(stateEnd,stateStart);
+			RETURN_HERUINSTIC(stateEnd, stateStart);
+			
 		}
+
+#ifdef USE_DUMB_OPTIMIZE
 		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
 			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
-
-			u_4b stepX, stepY, X = state % map_size_;
+			u_4b stepY = state / map_size_;
+			if (stepY > map_size_) return;
+			u_4b stepX = state % map_size_;
+			if (stepX > map_size_) return;
+			i_1b& node_steps = map_cells_[stepY][stepX];
+			//----------------------------------------------------------------------
+			//if ((node_steps & 0b00000111) > 0) {
+				state -= map_size_ + 1;
+				if ((node_steps & 0b00000001) > 0) {
+					neighbors->PushBack({ FAST_DIAG, state - 1 });
+				}
+				if ((node_steps & 0b00000010) > 0) {
+					neighbors->PushBack({ FAST_LINE, state });
+				}
+				if ((node_steps & 0b00000100) > 0) {
+					neighbors->PushBack({ FAST_DIAG, state + 1 });
+				}
+			//}
+			//----------------------------------------------------------------------
+			//if ((node_steps & 0b00011000) > 0) {
+				state += map_size_;
+				if ((node_steps & 0b00001000) > 0) {
+					neighbors->PushBack({ FAST_LINE, state - 1});
+				}
+				if ((node_steps & 0b00010000) > 0) {
+					neighbors->PushBack({ FAST_LINE, state + 1 });
+				}
+			//}
+			//----------------------------------------------------------------------
+			//if ((node_steps & 0b11100000) > 0) {
+				state += map_size_;
+				if ((node_steps & 0b00100000) > 0) {
+					neighbors->PushBack({ FAST_DIAG, state - 1});
+				}
+				if ((node_steps & 0b01000000) > 0) {
+					neighbors->PushBack({ FAST_LINE, state });
+				}
+				if ((node_steps & 0b10000000) > 0) {
+					neighbors->PushBack({ FAST_DIAG, state + 1});
+				}
+			//}
+			//----------------------------------------------------------------------
+		}
+#else
+		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
+			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
+			u_4b stepY, stepX, X = state % map_size_;
 			//----------------------------------------------------------------------
 			stepY = (state / map_size_) - 1;
 			if (stepY < map_size_) {
 				stepX = --X;
 				i_1b*& line = map_cells_[stepY];
-				u_4b indx = (map_size_ * stepY) + stepX;
+				u_4b indx = (state - map_size_) - 1;
 				SET_DIAG_NEGIBORS(line[stepX]);
 				++stepX;
 				++indx;
@@ -582,7 +656,7 @@ namespace pthfd {
 			if (stepY < map_size_) {
 				stepX = X;
 				i_1b*& line = map_cells_[stepY];
-				u_4b indx = (map_size_ * stepY) + stepX;
+				u_4b indx = state - 1;
 				SET_LINE_NEGIBORS(line[stepX]);
 				stepX += 2;
 				indx += 2;
@@ -593,7 +667,7 @@ namespace pthfd {
 			if (stepY < map_size_) {
 				stepX = X;
 				i_1b*& line = map_cells_[stepY];
-				u_4b indx = (map_size_ * stepY) + stepX;
+				u_4b indx = (state + map_size_) - 1;
 				SET_DIAG_NEGIBORS(line[stepX]);
 				++stepX;
 				++indx;
@@ -603,6 +677,8 @@ namespace pthfd {
 				SET_DIAG_NEGIBORS(line[stepX]);
 			}
 		}
+#endif
+
 		//======================================================================
 		__forceinline void Achieved(CPathNode* node, u_4b start, u_4b end, CVector<u_4b>* _path) {
 			CVector<u_4b>& path = *_path;
