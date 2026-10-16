@@ -579,58 +579,52 @@ namespace pthfd {
 		CVector< SNodeCost  >	nodesCostVec_;	// local to Search, but put here to reduce memory allocation
 		u_4b finder_frame_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		u_4b total_cost_; // incremented with every solve, used to determine if cached data needs to be refreshed
-		u_4b map_size_;		
+		u_4b map_size_;
+		u_4b map_binr_;
+		u_4b map_leng_;
 		i_1b** map_cells_;
 		//======================================================================
 		__forceinline u_4b GetEstimateCost(u_4b stateStart, u_4b stateEnd) {
 			RETURN_HERUINSTIC(stateEnd, stateStart);
-			
 		}
 
 #ifdef USE_DUMB_OPTIMIZE
+		//======================================================================
 		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
 			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
+			if (state > map_leng_) return;
 			u_4b stepY = state / map_size_;
-			if (stepY > map_size_) return;
 			u_4b stepX = state % map_size_;
-			if (stepX > map_size_) return;
 			i_1b& node_steps = map_cells_[stepY][stepX];
 			//----------------------------------------------------------------------
-			//if ((node_steps & 0b00000111) > 0) {
-				state -= map_size_ + 1;
-				if ((node_steps & 0b00000001) > 0) {
-					neighbors->PushBack({ FAST_DIAG, state - 1 });
-				}
-				if ((node_steps & 0b00000010) > 0) {
-					neighbors->PushBack({ FAST_LINE, state });
-				}
-				if ((node_steps & 0b00000100) > 0) {
-					neighbors->PushBack({ FAST_DIAG, state + 1 });
-				}
-			//}
+			if (node_steps & 0b00001000) {
+				neighbors->PushBack({ FAST_LINE, state - 1 });
+			}
+			if ((node_steps & 0b00010000) > 0) {
+				neighbors->PushBack({ FAST_LINE, state + 1 });
+			}
 			//----------------------------------------------------------------------
-			//if ((node_steps & 0b00011000) > 0) {
-				state += map_size_;
-				if ((node_steps & 0b00001000) > 0) {
-					neighbors->PushBack({ FAST_LINE, state - 1});
-				}
-				if ((node_steps & 0b00010000) > 0) {
-					neighbors->PushBack({ FAST_LINE, state + 1 });
-				}
-			//}
+			state -= map_size_;
+			if (node_steps & 0b00000001) {
+				neighbors->PushBack({ FAST_DIAG, state - 1 });
+			}
+			if (node_steps & 0b00000010) {
+				neighbors->PushBack({ FAST_LINE, state });
+			}
+			if (node_steps & 0b00000100) {
+				neighbors->PushBack({ FAST_DIAG, state + 1 });
+			}
 			//----------------------------------------------------------------------
-			//if ((node_steps & 0b11100000) > 0) {
-				state += map_size_;
-				if ((node_steps & 0b00100000) > 0) {
-					neighbors->PushBack({ FAST_DIAG, state - 1});
-				}
-				if ((node_steps & 0b01000000) > 0) {
-					neighbors->PushBack({ FAST_LINE, state });
-				}
-				if ((node_steps & 0b10000000) > 0) {
-					neighbors->PushBack({ FAST_DIAG, state + 1});
-				}
-			//}
+			state += map_binr_;
+			if (node_steps & 0b00100000) {
+				neighbors->PushBack({ FAST_DIAG, state - 1});
+			}
+			if (node_steps & 0b01000000) {
+				neighbors->PushBack({ FAST_LINE, state });
+			}
+			if (node_steps & 0b10000000) {
+				neighbors->PushBack({ FAST_DIAG, state + 1});
+			}
 			//----------------------------------------------------------------------
 		}
 #else
@@ -850,6 +844,8 @@ namespace pthfd {
 		__forceinline void SetByteMap(i_1b** map_data, u_2b map_size) {
 			dbg_out("=====================[  BEGIN SetByteMap() ]=====================");
 			map_size_ = static_cast<u_4b>(map_size);
+			map_leng_ = map_size_ * map_size_;
+			map_binr_ = map_size_ << 1;
 			map_cells_ = map_data;
 			pathNodePool_.Clear();
 			finder_frame_ = 0;

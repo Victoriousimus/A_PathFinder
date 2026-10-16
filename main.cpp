@@ -74,8 +74,13 @@ static void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoi
 	accum = 0.0f;
 	find_time = 0.0f;
 	SPoint2u path_points[2]{0};
+	path_points[0] = ise[1];
+	path_points[1] = ise[0];
+	finder.FindPath(path_points, path);
 	path_points[0] = ise[0];
 	path_points[1] = ise[1];
+	finder.FindPath(path_points, path);
+
 	for (i_4b i = 0; i < iter_count; ++i) {
 		f_8b find_time = win.time();
 		finder.FindPath(path_points, path);
@@ -133,7 +138,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 
 		start_end_path[0] = { 52, 119 };
 		start_end_path[1] = { 206, 90 };
-		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 2);
+		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 512);
 
 		while (!Win.window_close()) {
 			if (GV.update) {
