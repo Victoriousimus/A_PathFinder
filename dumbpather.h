@@ -130,8 +130,10 @@ Use:
 #include <functional>
 #include <array>
 #define DUMB_OPTIMIZE(declarate) declarate
+#define DUMB_UNOPTIMIZE(declarate)
 #else
-#define DUMB_OPTIMIZE(declarate) ;
+#define DUMB_OPTIMIZE(declarate)
+#define DUMB_UNOPTIMIZE(declarate) declarate
 #endif
 
 //Select SPoint2u - you can use any struct, if it have [x,y] freandly for [CDumbPather]
@@ -849,6 +851,12 @@ namespace pthfd {
 			dbg_out("CALL DESTRUCTOR [ ~CDumbPather ]");
 		}
 		CDumbPather() : map_cells_(nullptr), map_size_(0), pathNodePool_(8), finder_frame_(0),  total_cost_(0) {
+			DUMB_OPTIMIZE(
+				map_last_ = 0;
+				map_binr_ = 0;
+				map_mask_X_ = 0;
+				map_shft_Y_ = 0;
+			);
 			dbg_out("CALL CONSTRUCTOR [ CDumbPather ]");
 		}
 		CDumbPather(CDumbPather&&) = delete;
@@ -877,8 +885,8 @@ namespace pthfd {
 				path_segments->Relloc(pathNodes.Size());
 				for (u_4b i = 0; i < path_segments->Length(); ++i) {
 					(*path_segments)[i] = SPoint2u{
-						static_cast<u_2b>(pathNodes[i] % map_size_), 
-						static_cast<u_2b>(pathNodes[i] / map_size_) 
+						static_cast<u_2b>(pathNodes[i] % map_size_),
+						static_cast<u_2b>(pathNodes[i] / map_size_)
 					};
 				}
 			}
@@ -892,8 +900,8 @@ namespace pthfd {
 			finder_frame_ = 0;
 			DUMB_OPTIMIZE(
 					map_last_ = (map_size_ * map_size_) - 1;
-					map_shft_Y_ = std::log2(map_size_);
 					map_binr_ = map_size_ << 1;
+					map_shft_Y_ = std::log2(map_size_);
 					map_mask_X_ = map_size_ - 1;
 				);
 			dbg_out("=====================[   END SetByteMap()  ]=====================");
@@ -915,6 +923,8 @@ namespace pthfd {
 #undef SET_LINE_NEGIBORS
 #undef SET_DIAG_NEGIBORS
 #undef RETURN_HERUINSTIC 
+#undef DUMB_UNOPTIMIZE 
+#undef DUMB_OPTIMIZE 
 #undef CACHBLOCK
 #undef MAXIMAL
 #endif // PATHFINDER_FOR_DUMBS_INCLUDE
