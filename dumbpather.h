@@ -126,6 +126,12 @@ Use:
 
 #endif//DUMBPATHER_TYPES
 
+#ifdef USE_DUMB_OPTIMIZE
+
+#include <functional>
+#include <array>
+#endif
+
 //Select SPoint2u - you can use any struct, if it have [x,y] freandly for [CDumbPather]
 #ifndef SPoint2u
 #define SPoint2u DumbPathrer_2bytes_2D_point
@@ -589,43 +595,82 @@ namespace pthfd {
 		}
 
 #ifdef USE_DUMB_OPTIMIZE
+		using NegiborsFunc = void(*)(u_4b& s, CVector<SStateCost>* n);
+		static void H1_000(u_4b& s, CVector<SStateCost>* n) { }
+		static void H1_001(u_4b& s, CVector<SStateCost>* n) {
+			n->PushBack({ FAST_LINE, s - 1 }); 
+		}
+		static void H1_010(u_4b& s, CVector<SStateCost>* n) {
+			n->PushBack({ FAST_LINE, s + 1 }); 
+		}
+		static void H1_011(u_4b& s, CVector<SStateCost>* n) {
+			n->PushBack({ FAST_LINE, s - 1 });
+			n->PushBack({ FAST_LINE, s + 1 });
+		}
+
+		static void H2_000(u_4b& s, CVector<SStateCost>* n) {}
+		static void H2_001(u_4b& s, CVector<SStateCost>* n) {
+			n->PushBack({ FAST_LINE, s - 1 });
+		}
+		static void H2_010(u_4b& s, CVector<SStateCost>* n) {
+			n->PushBack({ FAST_LINE, s });
+		}
+		static void H2_100(u_4b& s, CVector<SStateCost>* n) {
+			n->PushBack({ FAST_LINE, s + 1 });
+		}
+		static void H2_101(u_4b& s, CVector<SStateCost>* n) {
+			n->PushBack({ FAST_LINE, s - 1 });
+			n->PushBack({ FAST_LINE, s + 1 });
+		}
+		static void H2_011(u_4b& s, CVector<SStateCost>* n) {
+			n->PushBack({ FAST_LINE, s - 1 });
+			n->PushBack({ FAST_LINE, s });
+		}
+		static void H2_110(u_4b& s, CVector<SStateCost>* n) {
+			n->PushBack({ FAST_LINE, s });
+			n->PushBack({ FAST_LINE, s + 1 });
+		}
+		static void H2_111(u_4b& s, CVector<SStateCost>* n) {
+			n->PushBack({ FAST_LINE, s - 1 });
+			n->PushBack({ FAST_LINE, s });
+			n->PushBack({ FAST_LINE, s + 1 });
+		}
+
+		static constexpr NegiborsFunc NegiborsFunc_1[4] = { 
+				H1_000, 
+				H1_001, 
+				H1_010, 
+				H1_011 
+			};
+		static constexpr NegiborsFunc NegiborsFunc_2[8] = {
+				H2_000, 
+				H2_001, 
+				H2_010,
+				H2_011,
+				H2_100,
+				H2_101,
+				H2_110,
+				H2_111
+			};
+
 		//======================================================================
 		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
 			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
 			if (state > map_leng_) return;
 			u_4b stepY = state / map_size_;
 			u_4b stepX = state % map_size_;
-			i_1b& node_steps = map_cells_[stepY][stepX];
-			//----------------------------------------------------------------------
-			if (node_steps & 0b00001000) {
-				neighbors->PushBack({ FAST_LINE, state - 1 });
-			}
-			if ((node_steps & 0b00010000) > 0) {
-				neighbors->PushBack({ FAST_LINE, state + 1 });
-			}
-			//----------------------------------------------------------------------
+			i_1b& node_data = map_cells_[stepY][stepX];
+
+			i_1b node_jmp = (node_data >> 3) & 0b00000011;
+			NegiborsFunc_1[node_jmp](state, neighbors);
+
 			state -= map_size_;
-			if (node_steps & 0b00000001) {
-				neighbors->PushBack({ FAST_DIAG, state - 1 });
-			}
-			if (node_steps & 0b00000010) {
-				neighbors->PushBack({ FAST_LINE, state });
-			}
-			if (node_steps & 0b00000100) {
-				neighbors->PushBack({ FAST_DIAG, state + 1 });
-			}
-			//----------------------------------------------------------------------
+			node_jmp = node_data & 0b00000111;
+			NegiborsFunc_2[node_jmp](state, neighbors);
+
 			state += map_binr_;
-			if (node_steps & 0b00100000) {
-				neighbors->PushBack({ FAST_DIAG, state - 1});
-			}
-			if (node_steps & 0b01000000) {
-				neighbors->PushBack({ FAST_LINE, state });
-			}
-			if (node_steps & 0b10000000) {
-				neighbors->PushBack({ FAST_DIAG, state + 1});
-			}
-			//----------------------------------------------------------------------
+			node_jmp = (node_data >> 5) & 0b00000111;
+			NegiborsFunc_2[node_jmp](state, neighbors);
 		}
 #else
 		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
