@@ -154,41 +154,21 @@ public :
 
 struct SMap_8b {
 #ifdef USE_DUMB_OPTIMIZATE_MAP
-#define map_optimization(foo) foo
-private:
-	__forceinline void validation_state(u_2b sX, u_2b sY, i_1b* res, i_1b num) {
-		if (sX < size_ && sY < size_) 
-			if (cell[sY][sX] == pthfd::TerrainType::WALKABLE)
-				*res |= num; 
-	}
-	__forceinline void optimization_map_algorithm() {
-		i_1b** new_map = new i_1b * [size_];
-		for (u_2b x,y = 0; y < size_; ++y){
-			new_map[y] = new i_1b[size_];
-			for (x = 0;x < size_; ++x) {
-				new_map[y][x] = 0;
-				validation_state((x - 1), (y - 1), &new_map[y][x], 0b00000001);
-				validation_state((x + 0), (y - 1), &new_map[y][x], 0b00000010);
-				validation_state((x + 1), (y - 1), &new_map[y][x], 0b00000100);
-				validation_state((x - 1), (y + 0), &new_map[y][x], 0b00001000);
-				validation_state((x + 1), (y + 0), &new_map[y][x], 0b00010000);
-				validation_state((x - 1), (y + 1), &new_map[y][x], 0b00100000);
-				validation_state((x + 0), (y + 1), &new_map[y][x], 0b01000000);
-				validation_state((x + 1), (y + 1), &new_map[y][x], 0b10000000);
-			}
-		}
-		for (i_4b x = 0; x < size_; ++x) { delete[] cell[x]; }
-		delete[] cell;
-		cell = new_map;
-	}
-public:
+#define map_optimization(foo1, foo2) foo2
 #else
-#define map_optimization(foo)
+#define map_optimization(foo1, foo2) foo1
 #endif
 	i_1b** cell;
 	u_2b size_;
 	SMap_8b() :size_(0), cell(nullptr) {}
 	~SMap_8b() { free(); }
+
+	i_1b set_neg(CStbImg& image, i_2b x, i_2b y, i_1b num) {
+		u_1b color[3];
+		image.getPix(x, y, &color);
+		if (color[0] < 8) return num;
+		return 0;
+	}
 	void init(CStbImg& image, i_4b size) {
 		i_2b x = 0;
 		i_2b y = 0;
@@ -202,13 +182,28 @@ public:
 				if (y >= size) break;
 				cell[y] = new i_1b[size];
 			}
-			image.getPix(x, y, &color);
-			cell[y][x] = pthfd::TerrainType::WALKABLE;
-			if (color[0] > 8) cell[y][x] = pthfd::TerrainType::BLOKABLE;
+			map_optimization(
+				image.getPix(x, y, &color);
+				cell[y][x] = pthfd::TerrainType::WALKABLE;
+				if (color[0] > 8) cell[y][x] = pthfd::TerrainType::BLOKABLE;
+			,
+				i_1b& bcell = cell[y][x];
+				cell[y][x] = 0;
+				cell[y][x] |= set_neg(image, (x - 1), (y - 1), 0b00000001);
+				cell[y][x] |= set_neg(image, (x + 0), (y - 1), 0b00000010);
+				cell[y][x] |= set_neg(image, (x + 1), (y - 1), 0b00000100);
+				cell[y][x] |= set_neg(image, (x - 1), (y + 0), 0b00001000);
+				cell[y][x] |= set_neg(image, (x + 1), (y + 0), 0b00010000);
+				cell[y][x] |= set_neg(image, (x - 1), (y + 1), 0b00100000);
+				cell[y][x] |= set_neg(image, (x + 0), (y + 1), 0b01000000);
+				cell[y][x] |= set_neg(image, (x + 1), (y + 1), 0b10000000);
+			)
 			++x;
 		}
-		map_optimization( optimization_map_algorithm() );
 	}
+
+
+
 	void free() {
 		if (!size_) return;
 		for (i_4b x = 0; x < size_; ++x) { delete[] cell[x]; }
@@ -217,6 +212,12 @@ public:
 	}
 	void print() {
 		map_optimization(
+			for (i_4b x, y = size_ - 1; y > -1; --y) {
+				for (x = 0; x < size_; ++x) { std::cout << " " << cell[y][x] << " "; }
+				std::cout << std::endl;
+			}
+			std::cout << std::endl;
+		,
 			std::cout << std::endl;
 			for (i_4b i, x, y = 0; y < size_; ++y) {
 				for (x = 0; x < size_; ++x) {
@@ -245,11 +246,6 @@ public:
 			}
 			std::cout << std::endl;
 		);
-		for (i_4b x, y = size_ - 1; y > -1; --y) {
-			for (x = 0; x < size_; ++x) { std::cout << " " << cell[y][x] << " "; }
-			std::cout << std::endl;
-		}
-		std::cout << std::endl;
 	}
 #undef map_optimization
 };
