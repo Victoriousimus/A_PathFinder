@@ -10,7 +10,7 @@
 #define DUMBPATHER_TYPES
 #define DUMBPATHER_DBGOUT
 #define DUMBPATHER_DEFAULT_FAST
-#define USE_DUMB_OPTIMIZE
+#define USE_DUMB_OPTIMIZATE_MAP
 
 #include <iostream>
 #include <windows.h>
@@ -23,8 +23,6 @@
 #include <GLFW/glfw3.h>
 #include "dumbpather.h"
 #include "dumbunites.h"
-
-
 
 class CStbImg {
 private:
@@ -155,7 +153,7 @@ public :
 };
 
 struct SMap_8b {
-#ifdef USE_DUMB_OPTIMIZE
+#ifdef USE_DUMB_OPTIMIZATE_MAP
 #define map_optimization(foo) foo
 private:
 	__forceinline void validation_state(u_2b sX, u_2b sY, i_1b* res, i_1b num) {

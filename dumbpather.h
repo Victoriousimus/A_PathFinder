@@ -14,7 +14,7 @@ Use:
 	
 
 	############################################################
-	USE MAP 
+	use only binar map size if you use USE_DUMB_OPTIMIZATE_MAP!
 
 	CELL = one byte node
 
@@ -25,16 +25,16 @@ Use:
 			4 * 5
 			6 7 8
 
-	CELL & 0b00000001 => move to { y-1 , x-1 }
-	CELL & 0b00000010 => move to { y-1 , x   }
-	CELL & 0b00000100 => move to { y-1 , x+1 }
-	CELL & 0b00001000 => move to {   y , x-1 }
-	CELL & 0b00010000 => move to {   y , x+1 }
-	CELL & 0b00100000 => move to { y+1 , x-1 }
-	CELL & 0b01000000 => move to { y+1 , x   }
-	CELL & 0b10000000 => move to { y+1 , x+1 }
+	CELL & 0b00000001 => cost of move to { y-1 , x-1 }
+	CELL & 0b00000010 => cost of move to { y-1 , x   }
+	CELL & 0b00000100 => cost of move to { y-1 , x+1 }
+	CELL & 0b00001000 => cost of move to {   y , x-1 }
+	CELL & 0b00010000 => cost of move to {   y , x+1 }
+	CELL & 0b00100000 => cost of move to { y+1 , x-1 }
+	CELL & 0b01000000 => cost of move to { y+1 , x   }
+	CELL & 0b10000000 => cost of move to { y+1 , x+1 }
 
-	#define USE_DUMB_OPTIMIZE
+	#define USE_DUMB_OPTIMIZATE_MAP
 
 	#############################################################
 
@@ -126,10 +126,12 @@ Use:
 
 #endif//DUMBPATHER_TYPES
 
-#ifdef USE_DUMB_OPTIMIZE
-
+#ifdef USE_DUMB_OPTIMIZATE_MAP
 #include <functional>
 #include <array>
+#define DUMB_OPTIMIZE(declarate) declarate
+#else
+#define DUMB_OPTIMIZE(declarate) ;
 #endif
 
 //Select SPoint2u - you can use any struct, if it have [x,y] freandly for [CDumbPather]
@@ -145,6 +147,7 @@ Use:
 
 
 //Select adjacent cost mode :
+#ifndef USE_DUMB_OPTIMIZATE_MAP
 #ifdef DUMBPATHER_DEFAULT_FAST // FAST BLOK IS DEFAULT
 //=============================[    FAST BLOK IS DEFAULT   ]=============================
 #define SET_LINE_NEGIBORS(typ) if (stepX < map_size_)	{								\
@@ -175,13 +178,7 @@ Use:
 	if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_DIAG, indx });			\
 	else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_DIAG, indx });	}
 #endif // AdjacentCost_foo_1
-
-#define RETURN_HERUINSTIC(sI,eI)	\
-	u_4b sX = sI % map_size_;		\
-	sI = sI / map_size_;			\
-	u_4b eX = eI % map_size_;		\
-	eI = eI / map_size_;			\
-	return ( (sI > eI ? sI - eI : eI - sI) + (sX > eX ? sX - eX : eX - sX) ) << 7;
+#endif
 
 namespace pthfd {
 	//======================================================================
@@ -586,93 +583,94 @@ namespace pthfd {
 		u_4b finder_frame_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		u_4b total_cost_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		u_4b map_size_;
-		u_4b map_binr_;
-		u_4b map_leng_;
 		i_1b** map_cells_;
+#ifdef USE_DUMB_OPTIMIZATE_MAP
+		u_4b map_binr_;
+		u_4b map_shft_Y_;
+		u_4b map_last_;
+		u_4b map_mask_X_;
 		//======================================================================
-		__forceinline u_4b GetEstimateCost(u_4b stateStart, u_4b stateEnd) {
-			RETURN_HERUINSTIC(stateEnd, stateStart);
+		using NegiborsFunc = void(*)(u_4b& s, CVector<SStateCost>& n);
+		static void HX_XXX(u_4b& s, CVector<SStateCost>& n) {}
+		static void H1_001(u_4b& s, CVector<SStateCost>& n) {
+			n.PushBack({ FAST_LINE, s - 1 }); 
+		}
+		static void H1_010(u_4b& s, CVector<SStateCost>& n) {
+			n.PushBack({ FAST_LINE, s + 1 }); 
+		}
+		static void H1_011(u_4b& s, CVector<SStateCost>& n) {
+			n.PushBack({ FAST_LINE, s - 1 });
+			n.PushBack({ FAST_LINE, s + 1 });
 		}
 
-#ifdef USE_DUMB_OPTIMIZE
-		using NegiborsFunc = void(*)(u_4b& s, CVector<SStateCost>* n);
-		static void H1_000(u_4b& s, CVector<SStateCost>* n) { }
-		static void H1_001(u_4b& s, CVector<SStateCost>* n) {
-			n->PushBack({ FAST_LINE, s - 1 }); 
+		static void H2_001(u_4b& s, CVector<SStateCost>& n) {
+			n.PushBack({ FAST_DIAG, s - 1 });
 		}
-		static void H1_010(u_4b& s, CVector<SStateCost>* n) {
-			n->PushBack({ FAST_LINE, s + 1 }); 
+		static void H2_010(u_4b& s, CVector<SStateCost>& n) {
+			n.PushBack({ FAST_LINE, s });
 		}
-		static void H1_011(u_4b& s, CVector<SStateCost>* n) {
-			n->PushBack({ FAST_LINE, s - 1 });
-			n->PushBack({ FAST_LINE, s + 1 });
+		static void H2_100(u_4b& s, CVector<SStateCost>& n) {
+			n.PushBack({ FAST_DIAG, s + 1 });
 		}
-
-		static void H2_000(u_4b& s, CVector<SStateCost>* n) {}
-		static void H2_001(u_4b& s, CVector<SStateCost>* n) {
-			n->PushBack({ FAST_LINE, s - 1 });
+		static void H2_101(u_4b& s, CVector<SStateCost>& n) {
+			n.PushBack({ FAST_DIAG, s - 1 });
+			n.PushBack({ FAST_DIAG, s + 1 });
 		}
-		static void H2_010(u_4b& s, CVector<SStateCost>* n) {
-			n->PushBack({ FAST_LINE, s });
+		static void H2_011(u_4b& s, CVector<SStateCost>& n) {
+			n.PushBack({ FAST_DIAG, s - 1 });
+			n.PushBack({ FAST_LINE, s });
 		}
-		static void H2_100(u_4b& s, CVector<SStateCost>* n) {
-			n->PushBack({ FAST_LINE, s + 1 });
+		static void H2_110(u_4b& s, CVector<SStateCost>& n) {
+			n.PushBack({ FAST_LINE, s });
+			n.PushBack({ FAST_DIAG, s + 1 });
 		}
-		static void H2_101(u_4b& s, CVector<SStateCost>* n) {
-			n->PushBack({ FAST_LINE, s - 1 });
-			n->PushBack({ FAST_LINE, s + 1 });
+		static void H2_111(u_4b& s, CVector<SStateCost>& n) {
+			n.PushBack({ FAST_DIAG, s - 1 });
+			n.PushBack({ FAST_LINE, s });
+			n.PushBack({ FAST_DIAG, s + 1 });
 		}
-		static void H2_011(u_4b& s, CVector<SStateCost>* n) {
-			n->PushBack({ FAST_LINE, s - 1 });
-			n->PushBack({ FAST_LINE, s });
-		}
-		static void H2_110(u_4b& s, CVector<SStateCost>* n) {
-			n->PushBack({ FAST_LINE, s });
-			n->PushBack({ FAST_LINE, s + 1 });
-		}
-		static void H2_111(u_4b& s, CVector<SStateCost>* n) {
-			n->PushBack({ FAST_LINE, s - 1 });
-			n->PushBack({ FAST_LINE, s });
-			n->PushBack({ FAST_LINE, s + 1 });
-		}
-
 		static constexpr NegiborsFunc NegiborsFunc_1[4] = { 
-				H1_000, 
-				H1_001, 
-				H1_010, 
-				H1_011 
+				HX_XXX, H1_001, H1_010, H1_011
 			};
 		static constexpr NegiborsFunc NegiborsFunc_2[8] = {
-				H2_000, 
-				H2_001, 
-				H2_010,
-				H2_011,
-				H2_100,
-				H2_101,
-				H2_110,
-				H2_111
+				HX_XXX, H2_001, H2_010, H2_011,
+				H2_100, H2_101, H2_110, H2_111
 			};
-
 		//======================================================================
 		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
-			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
-			if (state > map_leng_) return;
-			u_4b stepY = state / map_size_;
-			u_4b stepX = state % map_size_;
-			i_1b& node_data = map_cells_[stepY][stepX];
-
+			if (state > map_last_) return;
+			CVector<SStateCost>& neig = *neighbors;
+			i_1b& node_data = map_cells_[state >> map_shft_Y_][state & map_mask_X_];
 			i_1b node_jmp = (node_data >> 3) & 0b00000011;
-			NegiborsFunc_1[node_jmp](state, neighbors);
-
+			NegiborsFunc_1[node_jmp](state, neig);
 			state -= map_size_;
 			node_jmp = node_data & 0b00000111;
-			NegiborsFunc_2[node_jmp](state, neighbors);
-
+			NegiborsFunc_2[node_jmp](state, neig);
 			state += map_binr_;
 			node_jmp = (node_data >> 5) & 0b00000111;
-			NegiborsFunc_2[node_jmp](state, neighbors);
+			NegiborsFunc_2[node_jmp](state, neig);
 		}
+		//======================================================================
+		__forceinline u_4b GetEstimateCost(u_4b stateStart, u_4b stateEnd) {
+			const u_4b sX = stateStart & map_mask_X_;
+			const u_4b sY = stateStart >> map_shft_Y_;
+			const u_4b eX = stateEnd & map_mask_X_;
+			const u_4b eY = stateEnd >> map_shft_Y_;
+			const u_4b dx = sX > eX ? sX - eX : eX - sX;
+			const u_4b dy = sY > eY ? sY - eY : eY - sY;
+			return (dx + dy) << 7;
+		}
+		//======================================================================
 #else
+		__forceinline u_4b GetEstimateCost(u_4b stateStart, u_4b stateEnd) {
+			u_4b sX = stateStart % map_size_;
+			stateStart = stateStart / map_size_;
+			u_4b eX = stateEnd % map_size_;
+			stateEnd = stateEnd / map_size_;
+			return (
+				(stateStart > stateEnd ? stateStart - stateEnd : stateEnd - stateStart) +
+				(sX > eX ? sX - eX : eX - sX)  ) << 7;
+		}
 		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
 			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
 			u_4b stepY, stepX, X = state % map_size_;
@@ -889,11 +887,15 @@ namespace pthfd {
 		__forceinline void SetByteMap(i_1b** map_data, u_2b map_size) {
 			dbg_out("=====================[  BEGIN SetByteMap() ]=====================");
 			map_size_ = static_cast<u_4b>(map_size);
-			map_leng_ = map_size_ * map_size_;
-			map_binr_ = map_size_ << 1;
 			map_cells_ = map_data;
 			pathNodePool_.Clear();
 			finder_frame_ = 0;
+			DUMB_OPTIMIZE(
+					map_last_ = (map_size_ * map_size_) - 1;
+					map_shft_Y_ = std::log2(map_size_);
+					map_binr_ = map_size_ << 1;
+					map_mask_X_ = map_size_ - 1;
+				);
 			dbg_out("=====================[   END SetByteMap()  ]=====================");
 		}
 		__forceinline CacheStats GetCacheStats() const {
