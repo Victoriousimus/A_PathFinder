@@ -3,7 +3,6 @@
 #pragma comment( lib, "glfw3.lib" )     //Добавить в линковкщик либу GLfw
 
 #define STBI_ONLY_PNG				// Включить только формат PNG
-#define GRINLIZ_NO_STL
 #define STB_IMAGE_IMPLEMENTATION	// Подключение библиотеки STB_IMAGE
 #define WIN32_LEAN_AND_MEAN
 #define DUMBPATHER_TYPES
