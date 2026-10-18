@@ -132,11 +132,11 @@ Use:
 #ifdef USE_DUMB_OPTIMIZATE_MAP
 #include <functional>
 #include <array>
-#define DUMB_OPTIMIZE(declarate) declarate
-#define DUMB_UNOPTIMIZE(declarate)
+#define DUMB_OPTIMIZE(opt_declr) opt_declr
+#define DUMB_UNOPTIMIZE(unopt_declr)
 #else //else - USE_DUMB_OPTIMIZATE_MAP
-#define DUMB_OPTIMIZE(declarate)
-#define DUMB_UNOPTIMIZE(declarate) declarate
+#define DUMB_OPTIMIZE(opt_declr)
+#define DUMB_UNOPTIMIZE(unopt_declr) unopt_declr
 //Select adjacent cost mode :
 #ifdef DUMBPATHER_DEFAULT_FAST // FAST BLOK IS DEFAULT
 //=============================[    FAST BLOK IS DEFAULT   ]=============================
@@ -193,6 +193,7 @@ namespace pthfd {
 	private:
 		SPoint2u* array_;
 		u_4b length_;
+		u_4b point_;
 	public:
 		~CPathArray() { 
 			dbg_out("CALL DESTRUCTOR [ ~CPathArray ]");
@@ -879,15 +880,17 @@ namespace pthfd {
 			SPoint2u& start = path_points[0];
 			SPoint2u& end   = path_points[1];
 			path_segments->Relloc(0);
-			Bool unvalid = (
-				(end.y < map_size_ && end.x < map_size_) ?
-							DBLE_Func(     map_cells_[end.y][end.x] == TerrainType::BLOKABLE : true             )
-							FLAT_Func( map_cells_[(map_size_ * end.y) * end.x] == TerrainType::BLOKABLE : true  )
-						) || (
-				(start.y < map_size_ && start.x < map_size_) ?
-							DBLE_Func(			map_cells_[start.y][start.x] == TerrainType::BLOKABLE : true		)
-							FLAT_Func( map_cells_[(map_size_ * start.y) * start.x] == TerrainType::BLOKABLE : true  ) 
-						) ;
+			Bool unvalid = (end.y > map_size_ || end.x > map_size_) || (start.y > map_size_ || start.x > map_size_);
+			if (unvalid) {
+				dbg_out("=====================[ OUT_MAP FindPath() ]=====================");
+				return;
+			}
+			DBLE_Func( unvalid = 
+					map_cells_[end.y][end.x] == TerrainType::BLOKABLE ||
+					map_cells_[start.y][start.x] == TerrainType::BLOKABLE );
+			FLAT_Func( unvalid =
+				map_cells_[(map_size_ * end.y) + end.x] == TerrainType::BLOKABLE ||
+				map_cells_[(map_size_ * start.y) + start.x] == TerrainType::BLOKABLE );
 			if (unvalid) {
 				dbg_out("=====================[ NOT_END FindPath() ]=====================");
 				return;
@@ -900,15 +903,18 @@ namespace pthfd {
 				dbg_out("=====================[IS_SOLVED FindPath()]=====================");
 				path_segments->Relloc(pathNodes.Size());
 				for (u_4b i = 0; i < path_segments->Length(); ++i) {
+					u_4b& itm = pathNodes[i];
 					(*path_segments)[i] = SPoint2u{
-						static_cast<u_2b>(pathNodes[i] % map_size_),
-						static_cast<u_2b>(pathNodes[i] / map_size_)
+						DUMB_UNOPTIMIZE( static_cast<u_2b>(itm % map_size_) )
+						DUMB_OPTIMIZE( static_cast<u_2b>(itm & map_mask_X_) ),
+						DUMB_UNOPTIMIZE( static_cast<u_2b>(itm / map_size_) )
+						DUMB_OPTIMIZE( static_cast<u_2b>(itm >> map_shft_Y_) )
 					};
 				}
 			}
 			dbg_out("=====================[   END FindPath()   ]=====================");
 		}
-		__forceinline void SetByteMap(MapTYPE map_data, u_2b map_size) { //(i_1b** map_data, u_2b map_size) {
+		__forceinline void SetByteMap(MapTYPE map_data, u_2b map_size) {
 			dbg_out("=====================[  BEGIN SetByteMap() ]=====================");
 			map_size_ = static_cast<u_4b>(map_size);
 			map_cells_ = map_data;
@@ -938,9 +944,11 @@ namespace pthfd {
 };
 #undef SET_LINE_NEGIBORS
 #undef SET_DIAG_NEGIBORS
-#undef RETURN_HERUINSTIC 
 #undef DUMB_UNOPTIMIZE 
 #undef DUMB_OPTIMIZE 
 #undef CACHBLOCK
 #undef MAXIMAL
+#undef FLAT_Func(foo)
+#undef DBLE_Func(foo)
+#undef MapTYPE
 #endif // PATHFINDER_FOR_DUMBS_INCLUDE

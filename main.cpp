@@ -138,7 +138,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 
 		start_end_path[0] = { 5, 80 };
 		start_end_path[1] = { 206, 90 };
-		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 24);
+		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 512);
 
 		while (!Win.window_close()) {
 			if (GV.update) {
@@ -169,14 +169,14 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 						static_cast<u_2b>(static_cast<f_4b>(GV.mause_X) / SCALEF),
 						static_cast<u_2b>(static_cast<f_4b>(GV.mause_Y) / SCALEF)
 					};
-					std::cout
-						<< "Mouse = { "
+					MapDBLE( i_1b & cell_ref = Map.cell[ point.x ][ point.y ] );
+					MapFALT( i_1b & cell_ref = Map.cell[(point.x * Map.size_) + point.y] );
+					std::cout << "Mouse = { "
 						<< (point.x > 99 ? "" : (point.x > 9 ? " " : "  ")) << point.x << "; "
 						<< (point.y > 99 ? "" : (point.y > 9 ? " " : "  ")) << point.y << " } B["
-						<< static_cast<i_4b>(GV.button) << "]; CELL[ " << Map.cell[(point.x * Map.size_) + point.y] << "]"
+						<< static_cast<i_4b>(GV.button) << "]; CELL[ " << cell_ref << "]"
 						<< std::endl;
 					pthfd::CDumbPather::CacheStats cach = Pth.GetCacheStats();
-
 					std::cout << "CDumbPather cache state:\n"
 						<< "  sizeof(CDumbPather)     : " << cach.selfBytes << '\n'
 						<< "  statesCostVec_          : " << cach.stateCostVecBytes << '\n'
@@ -187,8 +187,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 						<< "  nodes allocated/free    : " << cach.poolAllocated << '/' << cach.poolAvailable << '\n'
 						<< "  total (approx)          : "
 						<< (cach.selfBytes + cach.stateCostVecBytes + cach.nodeCostVecBytes
-							+ cach.poolCacheBytes + cach.poolBlocksBytes + cach.poolHashBytes) << '\n';
-
+							+ cach.poolCacheBytes + cach.poolBlocksBytes + cach.poolHashBytes) << std::endl;
 				}
 			}
 			glPushMatrix();

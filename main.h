@@ -9,7 +9,7 @@
 #define DUMBPATHER_DBGOUT
 #define DUMBPATHER_DEFAULT_FAST
 #define USE_DUMB_OPTIMIZATE_MAP
-#define USE_DUMB_FLAT_MAP_MODE
+//#define USE_DUMB_FLAT_MAP_MODE
 
 #include <iostream>
 #include <windows.h>
