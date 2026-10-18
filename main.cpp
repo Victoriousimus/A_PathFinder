@@ -138,7 +138,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 
 		start_end_path[0] = { 5, 80 };
 		start_end_path[1] = { 206, 90 };
-		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 512);
+		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 24);
 
 		while (!Win.window_close()) {
 			if (GV.update) {
@@ -173,7 +173,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 						<< "Mouse = { "
 						<< (point.x > 99 ? "" : (point.x > 9 ? " " : "  ")) << point.x << "; "
 						<< (point.y > 99 ? "" : (point.y > 9 ? " " : "  ")) << point.y << " } B["
-						<< static_cast<i_4b>(GV.button) << "]; CELL[ " << Map.cell[point.x][point.y] << "]"
+						<< static_cast<i_4b>(GV.button) << "]; CELL[ " << Map.cell[(point.x * Map.size_) + point.y] << "]"
 						<< std::endl;
 					pthfd::CDumbPather::CacheStats cach = Pth.GetCacheStats();
 

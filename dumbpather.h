@@ -10,8 +10,7 @@ Use:
 	#define DUMBPATHER_DBGOUT		// If you need debug out
 	#define DUMBPATHER_DEFAULT_FAST	// Select adjacent cost mode [standart = UNWOKABLE mode]
 	#define SPoint2u Point2D		// You can use any struct, if it have [x,y] freandly for [CDumbPather]
-	#include " [include_lib_directory] /dumbpather.h"
-	
+	#include " [include_lib_directory] //dumbpather.h"
 
 	############################################################
 	use only binar map size if you use USE_DUMB_OPTIMIZATE_MAP!
@@ -41,7 +40,7 @@ Use:
 	struct Point2D{
 		u_2b x;
 		u_2b y;
-		* * * //You somethink interface realisation
+		* * * //You something interface realisation
 	}
 	    * * *
 		SomeMapClass Map;
@@ -49,7 +48,11 @@ Use:
 			{ unit_start_XY_position },
 			{ unit_end_XY_position }
 		};
-		i_1b** MapCellsMatrix =  Map.getCellsMatix();
+		#ifdef USE_DUMB_FLAT_MAP_MODE
+		i_1b* MapCellsMatrix  =  Map.getCellsMatix(); // << ACHTUNG акхтунгк
+		#else
+		i_1b** MapCellsMatrix =  Map.getCellsMatix(); // << ACHTUNG акхтунгк
+		endif
 		u_2b   MapSize		  =  Map.getSize();
 
 		pthfd::CDumbPather PathManager;
@@ -131,10 +134,41 @@ Use:
 #include <array>
 #define DUMB_OPTIMIZE(declarate) declarate
 #define DUMB_UNOPTIMIZE(declarate)
-#else
+#else //else - USE_DUMB_OPTIMIZATE_MAP
 #define DUMB_OPTIMIZE(declarate)
 #define DUMB_UNOPTIMIZE(declarate) declarate
-#endif
+//Select adjacent cost mode :
+#ifdef DUMBPATHER_DEFAULT_FAST // FAST BLOK IS DEFAULT
+//=============================[    FAST BLOK IS DEFAULT   ]=============================
+#define SET_LINE_NEGIBORS(typ) if (stepX < map_size_)	{								\
+		if ((typ != TerrainType::BLOKABLE))												\
+			if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_LINE, indx });	\
+			else neighbors->PushBack({ FAST_LINE, indx });								}
+#define SET_DIAG_NEGIBORS(typ) if (stepX < map_size_)	{								\
+		if ((typ != TerrainType::BLOKABLE))												\
+			if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_DIAG, indx });	\
+			else neighbors->PushBack({ FAST_DIAG, indx });								}
+#else //else - DUMBPATHER_DEFAULT_FAST
+#ifdef DUMBPATHER_DEFAULT_SLOW
+//=============================[    SLOW BLOK IS DEFAULT   ]=============================
+#define SET_LINE_NEGIBORS(typ)	if (stepX < map_size_)	{								\
+		if ((typ != TerrainType::BLOKABLE))												\
+			if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_LINE, indx });	\
+			else neighbors->PushBack({ SLOW_LINE, indx });								}
+#define SET_DIAG_NEGIBORS(typ)	if (stepX < map_size_)	{								\
+		if ((typ != TerrainType::BLOKABLE))												\
+			if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_DIAG, indx });	\
+			else neighbors->PushBack({ SLOW_DIAG, indx });								}
+#endif //end - DUMBPATHER_DEFAULT_SLOW
+//=============================[ UNWOKABLE BLOK IS DEFAULT ]=============================
+#define SET_LINE_NEGIBORS(typ)	if (stepX < map_size_)	{								\
+	if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_LINE, indx });			\
+	else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_LINE, indx });	}
+#define SET_DIAG_NEGIBORS(typ)	if (stepX < map_size_)	{								\
+	if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_DIAG, indx });			\
+	else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_DIAG, indx });	}
+#endif //end - DUMBPATHER_DEFAULT_FAST
+#endif //end - USE_DUMB_OPTIMIZATE_MAP
 
 //Select SPoint2u - you can use any struct, if it have [x,y] freandly for [CDumbPather]
 #ifndef SPoint2u
@@ -146,41 +180,6 @@ Use:
 #else
 	struct SPoint2u;
 #endif // !SPoint2u
-
-
-//Select adjacent cost mode :
-#ifndef USE_DUMB_OPTIMIZATE_MAP
-#ifdef DUMBPATHER_DEFAULT_FAST // FAST BLOK IS DEFAULT
-//=============================[    FAST BLOK IS DEFAULT   ]=============================
-#define SET_LINE_NEGIBORS(typ) if (stepX < map_size_)	{								\
-		if ((typ != TerrainType::BLOKABLE))												\
-			if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_LINE, indx });	\
-			else neighbors->PushBack({ FAST_LINE, indx });								}
-#define SET_DIAG_NEGIBORS(typ) if (stepX < map_size_)	{								\
-		if ((typ != TerrainType::BLOKABLE))												\
-			if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_DIAG, indx });	\
-			else neighbors->PushBack({ FAST_DIAG, indx });								}
-#else
-#ifdef DUMBPATHER_DEFAULT_SLOW
-//=============================[    SLOW BLOK IS DEFAULT   ]=============================
-#define SET_LINE_NEGIBORS(typ)	if (stepX < map_size_)	{								\
-		if ((typ != TerrainType::BLOKABLE))												\
-			if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_LINE, indx });	\
-			else neighbors->PushBack({ SLOW_LINE, indx });								}
-#define SET_DIAG_NEGIBORS(typ)	if (stepX < map_size_)	{								\
-		if ((typ != TerrainType::BLOKABLE))												\
-			if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_DIAG, indx });	\
-			else neighbors->PushBack({ SLOW_DIAG, indx });								}
-#endif
-//=============================[ UNWOKABLE BLOK IS DEFAULT ]=============================
-#define SET_LINE_NEGIBORS(typ)	if (stepX < map_size_)	{								\
-	if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_LINE, indx });			\
-	else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_LINE, indx });	}
-#define SET_DIAG_NEGIBORS(typ)	if (stepX < map_size_)	{								\
-	if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_DIAG, indx });			\
-	else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_DIAG, indx });	}
-#endif // AdjacentCost_foo_1
-#endif
 
 namespace pthfd {
 	//======================================================================
@@ -579,13 +578,23 @@ namespace pthfd {
 			}
 		};
 		//======================================================================
+#ifdef USE_DUMB_FLAT_MAP_MODE
+#define MapTYPE i_1b*
+#define FLAT_Func(foo) foo
+#define DBLE_Func(foo)
+#else
+#define MapTYPE i_1b**
+#define FLAT_Func(foo)
+#define DBLE_Func(foo) foo
+#endif
 		CPathNodePool pathNodePool_;
 		CVector< SStateCost >	statesCostVec_;	// local to Search, but put here to reduce memory allocation
 		CVector< SNodeCost  >	nodesCostVec_;	// local to Search, but put here to reduce memory allocation
 		u_4b finder_frame_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		u_4b total_cost_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		u_4b map_size_;
-		i_1b** map_cells_;
+		MapTYPE map_cells_;
+
 #ifdef USE_DUMB_OPTIMIZATE_MAP
 		u_4b map_binr_;
 		u_4b map_shft_Y_;
@@ -642,7 +651,8 @@ namespace pthfd {
 		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
 			if (state > map_last_) return;
 			CVector<SStateCost>& neig = *neighbors;
-			i_1b& node_data = map_cells_[state >> map_shft_Y_][state & map_mask_X_];
+			FLAT_Func(i_1b& node_data = map_cells_[state]);
+			DBLE_Func(i_1b& node_data = map_cells_[state >> map_shft_Y_][state & map_mask_X_]);
 			i_1b node_jmp = (node_data >> 3) & 0b00000011;
 			NegiborsFunc_1[node_jmp](state, neig);
 			state -= map_size_;
@@ -868,10 +878,16 @@ namespace pthfd {
 			dbg_out("=====================[  BEGIN FindPath()  ]=====================");
 			SPoint2u& start = path_points[0];
 			SPoint2u& end   = path_points[1];
-			path_segments->Relloc(0);		 
-			Bool unvalid = 
-				( (end.y   < map_size_ && end.x   < map_size_)? map_cells_[ end.y ][ end.x ] == TerrainType::BLOKABLE : true ) ||
-				( (start.y < map_size_ && start.x < map_size_)? map_cells_[start.y][start.x] == TerrainType::BLOKABLE : true );
+			path_segments->Relloc(0);
+			Bool unvalid = (
+				(end.y < map_size_ && end.x < map_size_) ?
+							DBLE_Func(     map_cells_[end.y][end.x] == TerrainType::BLOKABLE : true             )
+							FLAT_Func( map_cells_[(map_size_ * end.y) * end.x] == TerrainType::BLOKABLE : true  )
+						) || (
+				(start.y < map_size_ && start.x < map_size_) ?
+							DBLE_Func(			map_cells_[start.y][start.x] == TerrainType::BLOKABLE : true		)
+							FLAT_Func( map_cells_[(map_size_ * start.y) * start.x] == TerrainType::BLOKABLE : true  ) 
+						) ;
 			if (unvalid) {
 				dbg_out("=====================[ NOT_END FindPath() ]=====================");
 				return;
@@ -892,7 +908,7 @@ namespace pthfd {
 			}
 			dbg_out("=====================[   END FindPath()   ]=====================");
 		}
-		__forceinline void SetByteMap(i_1b** map_data, u_2b map_size) {
+		__forceinline void SetByteMap(MapTYPE map_data, u_2b map_size) { //(i_1b** map_data, u_2b map_size) {
 			dbg_out("=====================[  BEGIN SetByteMap() ]=====================");
 			map_size_ = static_cast<u_4b>(map_size);
 			map_cells_ = map_data;
@@ -901,7 +917,7 @@ namespace pthfd {
 			DUMB_OPTIMIZE(
 					map_last_ = (map_size_ * map_size_) - 1;
 					map_binr_ = map_size_ << 1;
-					map_shft_Y_ = std::log2(map_size_);
+					map_shft_Y_ = static_cast<u_4b>(std::log2(map_size_));
 					map_mask_X_ = map_size_ - 1;
 				);
 			dbg_out("=====================[   END SetByteMap()  ]=====================");

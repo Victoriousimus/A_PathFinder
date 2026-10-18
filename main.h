@@ -6,11 +6,11 @@
 #define GRINLIZ_NO_STL
 #define STB_IMAGE_IMPLEMENTATION	// Подключение библиотеки STB_IMAGE
 #define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
 #define DUMBPATHER_TYPES
 #define DUMBPATHER_DBGOUT
 #define DUMBPATHER_DEFAULT_FAST
 #define USE_DUMB_OPTIMIZATE_MAP
+#define USE_DUMB_FLAT_MAP_MODE
 
 #include <iostream>
 #include <windows.h>
@@ -158,7 +158,17 @@ struct SMap_8b {
 #else
 #define map_optimization(foo1, foo2) foo1
 #endif
+#ifdef USE_DUMB_FLAT_MAP_MODE
+	i_1b* cell;
+	#define MapCELL(a,b) cell[ (a*size_) + b ]
+	#define MapFALT(foo) foo
+	#define MapDBLE(foo)
+#else
 	i_1b** cell;
+	#define MapCELL(a,b) cell[ a ][ b ]
+	#define MapDBLE(foo) foo
+	#define MapFALT(foo)
+#endif
 	u_2b size_;
 	SMap_8b() :size_(0), cell(nullptr) {}
 	~SMap_8b() { free(); }
@@ -174,72 +184,66 @@ struct SMap_8b {
 		i_2b y = 0;
 		u_1b color[3];
 		size_ = size;
-		cell = new i_1b * [size];
-		cell[y] = new i_1b[size];
+		MapFALT(cell = new i_1b[size * size]);
+		MapDBLE(cell = new i_1b * [size]);
+		MapDBLE(cell[y] = new i_1b[size]);
 		while (true) {
 			if (x >= size) {
 				x = 0; ++y;
 				if (y >= size) break;
-				cell[y] = new i_1b[size];
+				MapDBLE(cell[y] = new i_1b[size]);
 			}
 			map_optimization(
 				image.getPix(x, y, &color);
-				cell[y][x] = pthfd::TerrainType::WALKABLE;
-				if (color[0] > 8) cell[y][x] = pthfd::TerrainType::BLOKABLE;
+				MapCELL(y, x) = pthfd::TerrainType::WALKABLE;
+				if (color[0] > 8) MapCELL(y, x) = pthfd::TerrainType::BLOKABLE;
 			,
-				i_1b& bcell = cell[y][x];
-				cell[y][x] = 0;
-				cell[y][x] |= set_neg(image, (x - 1), (y - 1), 0b00000001);
-				cell[y][x] |= set_neg(image, (x + 0), (y - 1), 0b00000010);
-				cell[y][x] |= set_neg(image, (x + 1), (y - 1), 0b00000100);
-				cell[y][x] |= set_neg(image, (x - 1), (y + 0), 0b00001000);
-				cell[y][x] |= set_neg(image, (x + 1), (y + 0), 0b00010000);
-				cell[y][x] |= set_neg(image, (x - 1), (y + 1), 0b00100000);
-				cell[y][x] |= set_neg(image, (x + 0), (y + 1), 0b01000000);
-				cell[y][x] |= set_neg(image, (x + 1), (y + 1), 0b10000000);
+				i_1b& bcell = MapCELL(y, x);
+				bcell = 0;
+				bcell |= set_neg(image, (x - 1), (y - 1), 0b00000001);
+				bcell |= set_neg(image, (x + 0), (y - 1), 0b00000010);
+				bcell |= set_neg(image, (x + 1), (y - 1), 0b00000100);
+				bcell |= set_neg(image, (x - 1), (y + 0), 0b00001000);
+				bcell |= set_neg(image, (x + 1), (y + 0), 0b00010000);
+				bcell |= set_neg(image, (x - 1), (y + 1), 0b00100000);
+				bcell |= set_neg(image, (x + 0), (y + 1), 0b01000000);
+				bcell |= set_neg(image, (x + 1), (y + 1), 0b10000000);
 			)
 			++x;
 		}
 	}
-
-
-
 	void free() {
 		if (!size_) return;
-		for (i_4b x = 0; x < size_; ++x) { delete[] cell[x]; }
+		MapDBLE(for (i_4b x = 0; x < size_; ++x) { delete[] cell[x]; });
 		delete[] cell;
 		size_ = 0;
 	}
 	void print() {
 		map_optimization(
 			for (i_4b x, y = size_ - 1; y > -1; --y) {
-				for (x = 0; x < size_; ++x) { std::cout << " " << cell[y][x] << " "; }
+				for (x = 0; x < size_; ++x) { std::cout << " " << MapCELL(y, x) << " "; }
 				std::cout << std::endl;
 			}
 			std::cout << std::endl;
 		,
 			std::cout << std::endl;
 			for (i_4b i, x, y = 0; y < size_; ++y) {
-				for (x = 0; x < size_; ++x) {
-					std::cout << "  ";
-					std::cout << ((cell[y][x] & 0b00000001) == 0 ? " X " : " . ");
-					std::cout << ((cell[y][x] & 0b00000010) == 0 ? " X " : " . ");
-					std::cout << ((cell[y][x] & 0b00000100) == 0 ? " X " : " . ");
+				for (x = 0; x < size_; ++x) { std::cout << "  ";
+					std::cout << ( (MapCELL(y, x) & 0b00000001) == 0 ? " X " : " . " );
+					std::cout << ( (MapCELL(y, x) & 0b00000010) == 0 ? " X " : " . " );
+					std::cout << ( (MapCELL(y, x) & 0b00000100) == 0 ? " X " : " . " );
+				}
+				std::cout << std::endl;												 
+				for (x = 0; x < size_; ++x) { std::cout << "  ";												 
+					std::cout << ( (MapCELL(y, x) & 0b00001000) == 0 ? " X " : " . " );
+					std::cout << x << ';' << y;										 
+					std::cout << ( (MapCELL(y, x) & 0b00010000) == 0 ? " X " : " . " );
 				}
 				std::cout << std::endl;
-				for (x = 0; x < size_; ++x) {
-					std::cout << "  ";
-					std::cout << ((cell[y][x] & 0b00001000) == 0 ? " X " : " . ");
-					std::cout << x << ';' << y;
-					std::cout << ((cell[y][x] & 0b00010000) == 0 ? " X " : " . ");
-
-				}
-				std::cout << std::endl;
-				for (x = 0; x < size_; ++x) {
-					std::cout << "  ";
-					std::cout << ((cell[y][x] & 0b00100000) == 0 ? " X " : " . ");
-					std::cout << ((cell[y][x] & 0b01000000) == 0 ? " X " : " . ");
-					std::cout << ((cell[y][x] & 0b10000000) == 0 ? " X " : " . ");
+				for (x = 0; x < size_; ++x) { std::cout << "  ";
+					std::cout << ( (MapCELL(y, x) & 0b00100000) == 0 ? " X " : " . " );
+					std::cout << ( (MapCELL(y, x) & 0b01000000) == 0 ? " X " : " . " );
+					std::cout << ( (MapCELL(y, x) & 0b10000000) == 0 ? " X " : " . " );
 				}
 				std::cout << std::endl;
 				std::cout << std::endl;
